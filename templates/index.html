@@ -1,0 +1,377 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Leather Classifier</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body {
+            background-color: #f8f9fa;
+            min-height: 100vh;
+        }
+        .main-container {
+            max-width: 800px;
+            margin: 2rem auto;
+            padding: 2rem;
+            background-color: white;
+            border-radius: 10px;
+            box-shadow: 0 0 20px rgba(0,0,0,0.1);
+        }
+        .upload-area {
+            border: 2px dashed #dee2e6;
+            border-radius: 10px;
+            padding: 2rem;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        .upload-area:hover {
+            border-color: #6c757d;
+            background-color: #f8f9fa;
+        }
+        #preview-image {
+            max-width: 100%;
+            max-height: 300px;
+            margin: 1rem 0;
+            border-radius: 5px;
+        }
+        .result-container {
+            margin-top: 2rem;
+            padding: 1rem;
+            border-radius: 5px;
+            display: none;
+        }
+        .loading {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="container main-container">
+        <h1 class="text-center mb-4">Leather App</h1>
+        
+        <!-- Login Form -->
+        <div id="loginForm" class="mb-4">
+            <div class="row">
+                <!-- Login Card -->
+                <div class="col-md-6">
+                    <div class="card">
+                        <div class="card-body">
+                            <h5 class="card-title">Login</h5>
+                            <form id="userLoginForm">
+                                <div class="mb-3">
+                                    <input type="text" class="form-control" id="username" placeholder="Username" required>
+                                </div>
+                                <div class="mb-3">
+                                    <input type="password" class="form-control" id="password" placeholder="Password" required>
+                                </div>
+                                <button type="submit" class="btn btn-primary">Login</button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+                <!-- Registration Card -->
+                <div class="col-md-6">
+                    <div class="card">
+                        <div class="card-body">
+                            <h5 class="card-title">Register</h5>
+                            <form id="userRegisterForm">
+                                <div class="mb-3">
+                                    <input type="text" class="form-control" id="reg-username" placeholder="Username" required>
+                                </div>
+                                <div class="mb-3">
+                                    <input type="password" class="form-control" id="reg-password" placeholder="Password" required>
+                                </div>
+                                <div class="mb-3">
+                                    <input type="password" class="form-control" id="reg-confirm-password" placeholder="Confirm Password" required>
+                                </div>
+                                <button type="submit" class="btn btn-success">Register</button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Main Content (Initially Hidden) -->
+        <div id="mainContent" style="display: none;">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h4>Welcome, <span id="userDisplay"></span></h4>
+                <button id="logoutBtn" class="btn btn-outline-danger">Logout</button>
+            </div>
+            
+            <div class="mb-4">
+                <label for="modelSelect" class="form-label">Select Model</label>
+                <select class="form-select" id="modelSelect">
+                    <option value="inception">Species Classification (Buffalo/Cow/Goat/Sheep)</option>
+                    <option value="alexnet">Leather Authentication (Leather/Non-Leather)</option>
+                </select>
+                <div id="modelNote" class="alert alert-info mt-2">
+                    <strong>Please Note:</strong> <span id="noteText">Upload image of grain pattern for species identification.</span>
+                </div>
+            </div>
+
+            <div class="upload-area" onclick="document.getElementById('file-input').click()">
+                <h5>Click to Upload Image or Drag and Drop</h5>
+                <p class="text-muted">Supported formats: JPG, PNG</p>
+                <input type="file" id="file-input" accept="image/*" style="display: none">
+            </div>
+
+            <div class="text-center mt-3">
+                <img id="preview-image" style="display: none;">
+                <button id="predict-btn" class="btn btn-primary" style="display: none;">
+                    Classify Leather
+                </button>
+                <div class="loading mt-3">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">Loading...</span>
+                    </div>
+                    <p>Processing image...</p>
+                </div>
+            </div>
+
+            <div class="result-container alert alert-success">
+                <h4 class="text-center">Classification Result</h4>
+                <p class="text-center mb-0">
+                    Predicted Class: <strong id="prediction-text"></strong><br>
+                    Confidence: <strong id="confidence-text"></strong>
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        const fileInput = document.getElementById('file-input');
+        const previewImage = document.getElementById('preview-image');
+        const predictBtn = document.getElementById('predict-btn');
+        const resultContainer = document.querySelector('.result-container');
+        const loadingIndicator = document.querySelector('.loading');
+        const uploadArea = document.querySelector('.upload-area');
+        const modelSelect = document.getElementById('modelSelect');
+        const loginForm = document.getElementById('userLoginForm');
+        const mainContent = document.getElementById('mainContent');
+        const userDisplay = document.getElementById('userDisplay');
+        const logoutBtn = document.getElementById('logoutBtn');
+        let currentUser = null;
+
+        // Login Form Handler
+        loginForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const usernameInput = document.getElementById('username');
+            const passwordInput = document.getElementById('password');
+            const username = usernameInput.value;
+            const password = passwordInput.value;
+
+            try {
+                const response = await fetch('/client/login', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ username, password })
+                });
+
+                const data = await response.json();
+                if (data.success) {
+                    currentUser = data.username;
+                    userDisplay.textContent = currentUser;
+                    document.getElementById('loginForm').style.display = 'none';
+                    mainContent.style.display = 'block';
+                    // Clear the form
+                    loginForm.reset();
+                } else {
+                    alert('Login failed: ' + data.error);
+                    // Don't reset the form on failure
+                    passwordInput.value = ''; // Just clear the password
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                alert('Login failed: Please try again');
+                // Don't reset the form on failure
+                passwordInput.value = ''; // Just clear the password
+            }
+        });
+
+        // Logout Handler
+        logoutBtn.addEventListener('click', () => {
+            currentUser = null;
+            userDisplay.textContent = '';
+            document.getElementById('loginForm').style.display = 'block';
+            mainContent.style.display = 'none';
+            resultContainer.style.display = 'none';
+            // Reset all forms
+            loginForm.reset();
+            registerForm.reset();
+            // Clear file input and preview
+            fileInput.value = '';
+            previewImage.style.display = 'none';
+            predictBtn.style.display = 'none';
+        });
+
+        // Update predict button click handler
+        predictBtn.addEventListener('click', async () => {
+            if (!currentUser) {
+                alert('Please login first');
+                return;
+            }
+
+            const file = fileInput.files[0];
+            if (!file) return;
+
+            const formData = new FormData();
+            formData.append('file', file);
+            formData.append('model_type', modelSelect.value);
+            formData.append('username', currentUser);
+
+            predictBtn.disabled = true;
+            loadingIndicator.style.display = 'block';
+            resultContainer.style.display = 'none';
+
+            try {
+                const response = await fetch('/predict', {
+                    method: 'POST',
+                    body: formData
+                });
+                const result = await response.json();
+                if (result.success) {
+                    document.getElementById('prediction-text').textContent = result.prediction;
+                    document.getElementById('confidence-text').textContent = result.confidence;
+                    resultContainer.style.display = 'block';
+                } else {
+                    alert(result.error || 'Classification failed');
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                alert('Classification failed');
+            } finally {
+                predictBtn.disabled = false;
+                loadingIndicator.style.display = 'none';
+            }
+        });
+
+        // Handle drag and drop
+        uploadArea.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            uploadArea.style.borderColor = '#0d6efd';
+        });
+
+        uploadArea.addEventListener('dragleave', (e) => {
+            e.preventDefault();
+            uploadArea.style.borderColor = '#dee2e6';
+        });
+
+        uploadArea.addEventListener('drop', (e) => {
+            e.preventDefault();
+            uploadArea.style.borderColor = '#dee2e6';
+            const file = e.dataTransfer.files[0];
+            if (file && file.type.startsWith('image/')) {
+                handleFile(file);
+            }
+        });
+
+        fileInput.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (file) {
+                handleFile(file);
+            }
+        });
+
+        function handleFile(file) {
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                previewImage.src = e.target.result;
+                previewImage.style.display = 'inline-block';
+                predictBtn.style.display = 'inline-block';
+                resultContainer.style.display = 'none';
+            };
+            reader.readAsDataURL(file);
+        }
+
+        // Add registration form handler
+        const registerForm = document.getElementById('userRegisterForm');
+        registerForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const username = document.getElementById('reg-username').value;
+            const password = document.getElementById('reg-password').value;
+            const confirmPassword = document.getElementById('reg-confirm-password').value;
+
+            if (password !== confirmPassword) {
+                alert('Passwords do not match');
+                return;
+            }
+
+            try {
+                const response = await fetch('/register', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ username, password })
+                });
+
+                const data = await response.json();
+                if (data.success) {
+                    // After successful registration, automatically try to log in
+                    try {
+                        const loginResponse = await fetch('/client/login', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                            },
+                            body: JSON.stringify({ username, password })
+                        });
+                        
+                        const loginData = await loginResponse.json();
+                        if (loginData.success) {
+                            alert('Registration successful! You are now logged in.');
+                            currentUser = username;
+                            userDisplay.textContent = currentUser;
+                            document.getElementById('loginForm').style.display = 'none';
+                            mainContent.style.display = 'block';
+                            registerForm.reset();
+                        } else {
+                            alert('Registration successful but login failed. Please try logging in manually.');
+                            registerForm.reset();
+                        }
+                    } catch (loginError) {
+                        console.error('Login Error:', loginError);
+                        alert('Registration successful but login failed. Please try logging in manually.');
+                        registerForm.reset();
+                    }
+                } else {
+                    alert('Registration failed: ' + data.error);
+                    // Clear only passwords on registration failure
+                    document.getElementById('reg-password').value = '';
+                    document.getElementById('reg-confirm-password').value = '';
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                alert('Registration failed. Please try again.');
+                // Clear only passwords on registration failure
+                document.getElementById('reg-password').value = '';
+                document.getElementById('reg-confirm-password').value = '';
+            }
+        });
+
+        // Add model selection handler
+        modelSelect.addEventListener('change', (e) => {
+            const noteText = document.getElementById('noteText');
+            if (e.target.value === 'inception') {
+                noteText.textContent = 'Upload image of grain pattern for species identification.';
+            } else {
+                noteText.textContent = 'Upload image of cross section for leather authentication.';
+            }
+            // Clear previous results when model changes
+            resultContainer.style.display = 'none';
+            previewImage.style.display = 'none';
+            predictBtn.style.display = 'none';
+            fileInput.value = '';
+        });
+
+        // Initialize note text based on default selection
+        document.getElementById('noteText').textContent = 'Upload image of grain pattern for species identification.';
+    </script>
+</body>
+</html> 
