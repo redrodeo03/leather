@@ -1,0 +1,247 @@
+# Project Overview: Leather Quality Classifier
+
+## 1. Introduction
+
+This project consists of web applications designed to classify leather quality based on uploaded images. It appears to contain two distinct application implementations: a Flask-based application in the root directory and a FastAPI-based application within the `app/` subdirectory. Both leverage deep learning models for classification.
+
+## 2. Project Structure Highlights
+
+```
+/
+|-- app.py                    # Main Flask application
+|-- database.db               # SQLite database for Flask app
+|-- requirements.txt          # Python dependencies (primarily for Flask app)
+|-- static/                   # Static assets for Flask app (CSS, JS, images)
+|-- templates/                # HTML templates for Flask app
+|-- inceptionNetV3_50e_v2v3_v1_final_TRIAL2.h5  # InceptionV3 model for Flask app
+|-- Alexnet_cs4600.h5         # AlexNet model for Flask app
+|-- InceptionNetV3Val.ipynb   # Jupyter notebook (likely for InceptionV3 model training/validation)
+|-- sample_alexnet.ipynb      # Jupyter notebook (likely for AlexNet model training/validation)
+|-- README.md                 # Existing README, primarily describes the Flask app
+|
+|-- app/                      # Subdirectory for the FastAPI application
+|   |-- main.py               # Main FastAPI application
+|   |-- database.py           # Database setup and models for FastAPI app (SQLAlchemy)
+|   |-- database.db           # SQLite database for FastAPI app
+|   |-- model/
+|   |   |-- model.h5          # Classification model for FastAPI app
+|   |-- static/               # Static assets for FastAPI app
+|   |-- templates/            # HTML templates for FastAPI app
+|   |-- __pycache__/
+|
+|-- instance/                 # Instance folder, typically for Flask configurations/SQLite DB
+|-- .git/
+|-- ... (other configuration files)
+```
+
+## 3. Application 1: Flask Application (Root Directory)
+
+This application is launched via `app.py` and seems to be the one described in the current `README.md`.
+
+### 3.1. Overview
+
+A web application built with Flask that allows users to upload leather images and get classification results. It includes user authentication (client and admin) and logs prediction history.
+
+### 3.2. Architecture
+
+*   **Backend:** Flask (Python)
+*   **Database:** SQLite (`database.db` in the root directory)
+    *   Manages users and prediction history directly using `sqlite3` library.
+*   **Machine Learning:** TensorFlow/Keras
+    *   Loads models on demand.
+*   **Frontend:** HTML, CSS, JavaScript (served from `templates/` and `static/`)
+
+### 3.3. Key Components
+
+*   `app.py`: Core application logic, routing, database interactions, model loading, and prediction.
+*   `database.db`: SQLite database file.
+*   Models (in root directory):
+    *   `inceptionNetV3_50e_v2v3_v1_final_TRIAL2.h5`: InceptionV3 model.
+    *   `Alexnet_cs4600.h5`: AlexNet model.
+*   `templates/`: Contains HTML files for rendering pages (e.g., `index.html`, `admin_login.html`, `admin_dashboard.html`).
+*   `static/`: Contains CSS, JavaScript, and potentially uploaded images.
+
+### 3.4. Features
+
+*   User registration and login for clients.
+*   Admin login and dashboard.
+*   Image upload for classification.
+*   Selection between InceptionV3 and AlexNet models for prediction.
+*   Displays predicted class and confidence score.
+*   Stores prediction history (image path, model used, prediction, confidence, user).
+*   Admin can view all predictions.
+
+### 3.5. Database Schema (`database.db` via `app.py`)
+
+*   **users**
+    *   `id` (INTEGER, PRIMARY KEY, AUTOINCREMENT)
+    *   `username` (TEXT, UNIQUE, NOT NULL)
+    *   `password_hash` (TEXT, NOT NULL)
+    *   `is_admin` (BOOLEAN, DEFAULT 0)
+*   **predictions**
+    *   `id` (INTEGER, PRIMARY KEY, AUTOINCREMENT)
+    *   `image_path` (TEXT, NOT NULL)
+    *   `model_used` (TEXT, NOT NULL)
+    *   `timestamp` (DATETIME, DEFAULT CURRENT_TIMESTAMP)
+    *   `predicted_class` (TEXT, NOT NULL)
+    *   `confidence` (REAL, NOT NULL)
+    *   `user_id` (INTEGER, FOREIGN KEY to users.id)
+
+### 3.6. Models Used
+
+*   **InceptionV3:** Loaded from `inceptionNetV3_50e_v2v3_v1_final_TRIAL2.h5`.
+    *   Input preprocessed using `tensorflow.keras.applications.inception_v3.preprocess_input`.
+    *   Resizes images to 299x299 with padding to maintain aspect ratio.
+*   **AlexNet:** Loaded from `Alexnet_cs4600.h5`.
+    *   Input resized to 227x227.
+    *   Normalized to [0, 1] range.
+*   **Class Labels:** `['Buffalo', 'Cow', 'Goat', 'Sheep']`
+
+### 3.7. Setup and Running
+
+1.  **Prerequisites:**
+    *   Python 3.7+
+    *   Ensure all dependencies from `requirements.txt` are installed.
+        ```bash
+        pip install -r requirements.txt
+        ```
+2.  **Model Files:**
+    *   Ensure `inceptionNetV3_50e_v2v3_v1_final_TRIAL2.h5` and `Alexnet_cs4600.h5` are in the root project directory.
+3.  **Initialize Database (if starting fresh):**
+    *   The application creates `database.db` and an admin user (`admin`/`admin123`) automatically if they don't exist.
+4.  **Run the Application:**
+    ```bash
+    python app.py
+    ```
+5.  **Access:** Open a web browser and navigate to `http://localhost:5000`.
+
+## 4. Application 2: FastAPI Application (`app/` directory)
+
+This application is located in the `app/` subdirectory and uses the FastAPI framework.
+
+### 4.1. Overview
+
+A modern API-driven web application built with FastAPI for leather image classification. It uses SQLAlchemy for database interactions and JWT for token-based authentication.
+
+### 4.2. Architecture
+
+*   **Backend:** FastAPI (Python)
+*   **Database:** SQLite (`app/database.db`)
+    *   Uses SQLAlchemy ORM for database operations.
+*   **Machine Learning:** TensorFlow/Keras
+*   **Authentication:** JWT (JSON Web Tokens)
+*   **Frontend:** HTML, CSS, JavaScript (served from `app/templates/` and `app/static/`)
+
+### 4.3. Key Components
+
+*   `app/main.py`: Core FastAPI application logic, API endpoints, authentication, model loading, and prediction.
+*   `app/database.py`: Defines SQLAlchemy models (`User`, `Prediction`) and database session management. Creates `app/database.db`.
+*   `app/model/model.h5`: The classification model used by this application.
+*   `app/templates/`: Contains HTML files (e.g., `index.html`).
+*   `app/static/`: Contains static assets.
+
+### 4.4. Features
+
+*   User registration and token-based login.
+*   Image upload for classification.
+*   Stores prediction history linked to users.
+*   Authenticated users can retrieve their predictions.
+*   Admin users can retrieve all predictions.
+*   Serves a frontend using Jinja2 templates.
+
+### 4.5. Database Schema (`app/database.db` via `app/database.py` - SQLAlchemy)
+
+*   **users** (`User` model)
+    *   `id` (Integer, primary_key=True, index=True)
+    *   `username` (String, unique=True, index=True)
+    *   `password_hash` (String)
+    *   `is_admin` (Boolean, default=False)
+    *   `predictions` (relationship to `Prediction` model)
+*   **predictions** (`Prediction` model)
+    *   `id` (Integer, primary_key=True, index=True)
+    *   `image_path` (String)
+    *   `prediction` (String) # Predicted class
+    *   `confidence` (String) # Confidence score
+    *   `timestamp` (DateTime, default=datetime.datetime.utcnow)
+    *   `user_id` (Integer, ForeignKey("users.id"))
+    *   `user` (relationship to `User` model)
+
+### 4.6. Model Used
+
+*   **Model:** Loaded from `app/model/model.h5`.
+    *   Input images are resized to 224x224.
+    *   Preprocessed using `tensorflow.keras.applications.inception_v3.preprocess_input` (suggests it's an InceptionV3-compatible model).
+*   **Class Labels:** `["good_leather", "defective_leather", "class3", "class4"]` (as defined in `app/main.py`).
+
+### 4.7. Setup and Running
+
+1.  **Prerequisites:**
+    *   Python 3.7+
+    *   Install dependencies from `requirements.txt`.
+    *   Additionally, install FastAPI-specific dependencies:
+        ```bash
+        pip install fastapi uvicorn sqlalchemy python-multipart python-jose[cryptography] passlib[bcrypt]
+        ```
+        (Note: Some of these might eventually be merged into the main `requirements.txt`)
+2.  **Model File:**
+    *   Ensure `model.h5` is present in the `app/model/` directory.
+3.  **Database Initialization:**
+    *   The `app/database.py` script creates the `app/database.db` and tables when first imported/run.
+4.  **Run the Application:**
+    *   Navigate to the root directory of the project.
+    *   Use Uvicorn to run the FastAPI app:
+        ```bash
+        uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+        ```
+        (The `--host 0.0.0.0` makes it accessible on your network, `--port 8000` specifies the port, `--reload` enables auto-reloading on code changes.)
+5.  **Access:**
+    *   **API Docs (Swagger UI):** `http://localhost:8000/docs`
+    *   **Application UI (if `index.html` is served at root):** `http://localhost:8000/`
+
+## 5. Dependencies
+
+*   **Primary Dependencies (from `requirements.txt`):**
+    *   `tensorflow>=2.12.0`
+    *   `keras>=2.12.0`
+    *   `numpy>=1.21.0`
+    *   `Flask>=2.0.1`
+    *   `Pillow>=8.3.1` (for image manipulation)
+    *   `werkzeug>=2.0.1` (Flask dependency)
+
+*   **Additional Dependencies for FastAPI Application (`app/`):**
+    *   `fastapi`: The FastAPI framework.
+    *   `uvicorn`: ASGI server to run FastAPI.
+    *   `sqlalchemy`: For database ORM.
+    *   `python-multipart`: For handling file uploads in FastAPI.
+    *   `python-jose[cryptography]`: For JWT handling.
+    *   `passlib[bcrypt]`: For password hashing.
+
+It is recommended to consolidate all dependencies into a single `requirements.txt` file if both applications are intended to be maintained.
+
+## 6. Jupyter Notebooks
+
+*   `InceptionNetV3Val.ipynb`: This notebook likely contains the code for training, evaluating, or fine-tuning an InceptionV3 model, possibly the one used in the Flask application or as a base for the FastAPI app's model.
+*   `sample_alexnet.ipynb`: This notebook likely contains code related to an AlexNet model, perhaps for training, experimentation, or the version used in the Flask application.
+
+These notebooks are valuable for understanding the model creation process.
+
+## 7. How to Run (Summary)
+
+### Flask Application (root):
+
+1.  Ensure Python and pip are installed.
+2.  Install requirements: `pip install -r requirements.txt`
+3.  Make sure model files (`inceptionNetV3_50e_v2v3_v1_final_TRIAL2.h5`, `Alexnet_cs4600.h5`) are in the root directory.
+4.  Run: `python app.py`
+5.  Access: `http://localhost:5000`
+
+### FastAPI Application (`app/` directory):
+
+1.  Ensure Python and pip are installed.
+2.  Install requirements: `pip install -r requirements.txt` (and additional FastAPI dependencies mentioned in section 4.7.1).
+3.  Make sure model file (`app/model/model.h5`) is in place.
+4.  Run from root directory: `uvicorn app.main:app --reload --port 8000`
+5.  Access UI: `http://localhost:8000/`
+6.  Access API Docs: `http://localhost:8000/docs`
+
+This document provides a comprehensive overview based on the current state of the codebase. 
